@@ -2,6 +2,8 @@ name: APK derle
 on:
   push:
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -12,7 +14,13 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with: { gradle-version: '8.7' }
       - run: gradle assembleDebug --no-daemon
+      - run: cp app/build/outputs/apk/debug/app-debug.apk HisseAlarm.apk
       - uses: actions/upload-artifact@v4
         with:
           name: HisseAlarm-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          path: HisseAlarm.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-latest
+          name: Hisse Alarm APK
+          files: HisseAlarm.apk
