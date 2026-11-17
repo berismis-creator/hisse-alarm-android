@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<title>Hisse Alarm</title>
+<style>
+:root{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#ecf3ff;background:#0b1220;font-variant-numeric:tabular-nums}
+*{box-sizing:border-box}body{margin:0;background:#0b1220;min-height:100vh}
+main{max-width:640px;margin:0 auto;padding:20px 14px 40px}
+h1{font-size:26px;margin:4px 0 2px;letter-spacing:-.8px}h2{font-size:16px;margin:0 0 12px}
+.sub{color:#9aaac0;font-size:13px;margin:0 0 14px}
+.card{background:#131e32;border:1px solid #28364e;border-radius:16px;padding:15px;margin:12px 0}
+.row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+label{display:block;font-size:12px;color:#b3bfd0;margin:0 0 5px;font-weight:600}
+input{width:100%;border:1px solid #4a5971;background:#0b1729;color:#fff;border-radius:10px;padding:11px;font-size:16px;outline:none}
+input:focus{border-color:#8cbaff}
+button{font:inherit;font-weight:800;font-size:14px;background:#b8dbff;color:#08182d;border:0;border-radius:10px;padding:11px 14px;min-height:44px;cursor:pointer}
+button.s{background:#233954;color:#d8edff;border:1px solid #426286}
+button.x{background:transparent;color:#ffa9a9;border:1px solid #6b3b45;min-height:36px;padding:6px 10px}
+.btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.btns button{flex:1 1 auto}
+.muted{color:#91a1b8;font-size:12px;line-height:1.5}
+.stock{border-left:4px solid #527d93}
+.stock.up{border-left-color:#6ce0b5;background:#12302b}.stock.down{border-left-color:#ff8f8f;background:#341f29}
+.top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.sym{font-weight:800;font-size:18px}.price{font-size:26px;font-weight:800}
+.bar{position:relative;height:8px;border-radius:5px;background:#26354a;margin:14px 0 6px}
+.bar i{position:absolute;top:-4px;width:4px;height:16px;border-radius:2px;background:#fff}
+.bar b{position:absolute;top:0;height:8px;background:#3b6b57;border-radius:5px}
+.scale{display:flex;justify-content:space-between;font-size:12px;color:#9dafc6}
+.tag{font-size:12px;font-weight:700}.good{color:#6ce0b5}.bad{color:#ffa9a9}
+#banner{position:sticky;top:8px;z-index:9;display:none;background:#5a2a2a;border:1px solid #d57b7b;color:#fff;border-radius:12px;padding:12px;font-weight:700;margin-bottom:10px}
+#banner.up{background:#1f5a47;border-color:#6ce0b5}
+.warn{border:1px solid #7d6541;background:#2d241d;color:#ffddac;border-radius:12px;padding:11px;font-size:12px;line-height:1.55}
+details summary{cursor:pointer;font-weight:700;font-size:14px}
+</style>
+</head>
+<body><main>
+<h1>Hisse Alarm 📈</h1>
+<p class="sub">Kendi hisselerini ve limitlerini belirle; fiyat limitin <b>1 üstüne</b> veya <b>1 altına</b> gelince uyarı al.</p>
+<div id="banner" role="alert"></div>
+
+<section class="card">
+<h2>Hisse ekle</h2>
+<div class="row">
+ <div><label for="sym">Sembol</label><input id="sym" placeholder="THYAO.IS" autocapitalize="characters" autocomplete="off"></div>
+ <div><label for="lim">Limit (fiyat)</label><input id="lim" type="number" inputmode="decimal" step="any" min="0.0001" placeholder="300"></div>
+ <div><label for="band">±Aralık</label><input id="band" type="number" inputmode="decimal" step="any" min="0.0001" value="1"></div>
+</div>
+<p class="muted">BIST için sonuna <b>.IS</b> ekle (THYAO.IS, ASELS.IS). ABD hisseleri düz yazılır (AAPL). Uyarı: fiyat ≥ limit+aralık veya ≤ limit−aralık olunca.</p>
+<div class="btns"><button id="add">Ekle</button><button class="s" id="notif">Bildirim iznini aç</button></div>
+</section>
+
+<div id="list"></div>
+
+<section class="card">
+<details>
+<summary>Kapalıyken uyarı (telefon bildirimi)</summary>
+<p class="muted" id="apkInfo"></p>
+<p class="muted">Sayfa kapalıyken uyarı için <code>server.js</code> servisi bilgisayarında/sunucunda çalışmalı. Servis fiyatı izler ve <b>ntfy</b> uygulamasına bildirim yollar. Telefona ücretsiz <b>ntfy</b> uygulamasını kur, aşağıya tahmin edilmesi zor bir konu adı yaz ve uygulamada aynı konuya abone ol.</p>
+<label for="topic">ntfy konu adı</label><input id="topic" placeholder="hisse-baris-8f3k2x" autocomplete="off">
+<div class="btns"><button id="sync" class="s">Listeyi servise gönder</button></div>
+<p class="muted" id="syncInfo">Servis bağlı değil (sayfayı servisten, http://bilgisayar-ip:8787 adresinden aç).</p>
+</details>
+</section>
+
+<div class="warn">⚠️ Veri Yahoo Finance'ten gelir; BIST fiyatları gecikmeli olabilir, kesinlik garantisi yoktur. Bu uygulama emir göndermez, yatırım tavsiyesi değildir. Sayfa açıkken uyarı ses, titreşim ve bildirimle gelir; tarayıcı arka planda kısıtlanabilir, kapalıyken güvenilir uyarı için servisi kullan.</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+const KEY='hisseAlarm.v1', REFRESH_MS=15000;
+let st; try{st=JSON.parse(localStorage.getItem(KEY))||{}}catch{st={}}
+st.items=st.items||[]; st.topic=st.topic||'';
+let serverOk=false;
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(st))}catch{}try{if(window.Android)Android.saveList(JSON.stringify(st.items.map(i=>({symbol:i.symbol,limit:i.limit,band:i.band}))))}catch{}};
+const fmt=(n,d=2)=>Number(n).toLocaleString('tr-TR',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+function zone(p,l,b){return p>=l+b?'up':p<=l-b?'down':'in'}
+
+async function getJson(url){const r=await fetch(url,{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);return r.json()}
+function parseYahoo(j,symbol){
+  const m=j&&j.chart&&j.chart.result&&j.chart.result[0]&&j.chart.result[0].meta;
+  if(!m||!Number.isFinite(m.regularMarketPrice))throw new Error('Sembol bulunamadı');
+  return {symbol,price:m.regularMarketPrice,prev:m.chartPreviousClose??null,currency:m.currency||''};
+}
+async function quote(symbol){
+  const y='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval=1m&range=1d';
+  const tries=[];
+  if(serverOk)tries.push(()=>getJson('/api/quote?symbol='+encodeURIComponent(symbol)));
+  tries.push(async()=>parseYahoo(await getJson(y),symbol));
+  tries.push(async()=>parseYahoo(await getJson('https://api.allorigins.win/raw?url='+encodeURIComponent(y)),symbol));
+  let last;
+  for(const t of tries){try{return await t()}catch(e){last=e}}
+  throw last||new Error('Fiyat alınamadı');
+}
+
+function beep(){try{const a=new (window.AudioContext||window.webkitAudioContext)();[0,.25,.5].forEach(t=>{const o=a.createOscillator(),g=a.createGain();o.frequency.value=880;o.connect(g);g.connect(a.destination);g.gain.setValueAtTime(.2,a.currentTime+t);g.gain.exponentialRampToValueAtTime(.001,a.currentTime+t+.2);o.start(a.currentTime+t);o.stop(a.currentTime+t+.22)})}catch{}}
+function alertUser(it,z,price){
+  const dir=z==='up'?'YUKARI':'AŞAĞI';
+  const msg=it.symbol+' '+dir+' çıktı: '+fmt(price)+' (limit '+fmt(it.limit)+', aralık ±'+fmt(it.band)+')';
+  const b=$('banner');b.textContent='🔔 '+msg;b.className=z;b.style.display='block';
+  beep();try{navigator.vibrate&&navigator.vibrate([300,150,300])}catch{}
+  try{if('Notification'in window&&Notification.permission==='granted')new Notification('Hisse Alarm',{body:msg})}catch{}
+}
+
+function render(){
+  $('list').innerHTML=st.items.map((it,i)=>{
+    const lo=it.limit-it.band,hi=it.limit+it.band,span=hi-lo;
+    let pos=it.price==null?50:Math.max(0,Math.min(100,(it.price-lo)/span*50+25)); // 25%..75% = aralık
+    const cls=it.zone==='up'?'up':it.zone==='down'?'down':'';
+    const chg=(it.price!=null&&it.prev)?(it.price-it.prev)/it.prev*100:null;
+    return '<div class="card stock '+cls+'"><div class="top"><span class="sym">'+esc(it.symbol)+'</span><span class="price">'+(it.price==null?'—':fmt(it.price))+'</span></div>'
+    +'<div class="muted">'+(chg==null?'':'<span class="tag '+(chg>=0?'good':'bad')+'">'+(chg>=0?'+':'')+fmt(chg)+'%</span> · ')+(it.err?'<span class="bad">'+esc(it.err)+'</span>':it.upd?'güncelleme '+it.upd:'yükleniyor…')+'</div>'
+    +'<div class="bar"><b style="left:25%;width:50%"></b><i style="left:calc('+pos+'% - 2px)"></i></div>'
+    +'<div class="scale"><span>↓ '+fmt(lo)+'</span><span>limit '+fmt(it.limit)+'</span><span>↑ '+fmt(hi)+'</span></div>'
+    +'<div class="btns"><button class="x" data-del="'+i+'">Sil</button><button class="s" data-rearm="'+i+'">Limiti şu fiyata taşı</button></div></div>';
+  }).join('')||'<p class="muted">Henüz hisse yok. Yukarıdan ekle.</p>';
+}
+
+async function refresh(){
+  await Promise.all(st.items.map(async it=>{
+    try{
+      const q=await quote(it.symbol);
+      it.price=q.price;it.prev=q.prev;it.err='';
+      it.upd=new Date().toLocaleTimeString('tr-TR');
+      const z=zone(q.price,it.limit,it.band);
+      if(z!=='in'&&it.zone!==z)alertUser(it,z,q.price);
+      it.zone=z;
+    }catch(e){it.err='Fiyat alınamadı: '+e.message}
+  }));
+  save();render();
+}
+
+$('add').onclick=()=>{
+  const s=$('sym').value.trim().toUpperCase(),l=Number($('lim').value),b=Number($('band').value);
+  if(!/^[A-Z0-9.\-^=]{1,20}$/.test(s))return alert('Geçerli bir sembol yaz (ör. THYAO.IS).');
+  if(!(l>0)||!(b>0))return alert('Limit ve aralık sıfırdan büyük olmalı.');
+  st.items.push({symbol:s,limit:l,band:b,zone:'in'});
+  $('sym').value='';$('lim').value='';save();render();refresh();pushServer();
+};
+$('list').onclick=e=>{
+  const d=e.target.dataset;
+  if(d.del!==undefined){st.items.splice(+d.del,1);save();render();pushServer();}
+  if(d.rearm!==undefined){const it=st.items[+d.rearm];if(it.price!=null){it.limit=it.price;it.zone='in';$('banner').style.display='none';save();render();pushServer();}}
+};
+$('notif').onclick=async()=>{
+  if(!('Notification'in window))return alert('Bu tarayıcı bildirimi desteklemiyor.');
+  const r=await Notification.requestPermission();alert(r==='granted'?'Bildirim açık.':'Bildirim izni verilmedi.');
+};
+$('banner').onclick=()=>{$('banner').style.display='none'};
+$('topic').value=st.topic;
+$('topic').onchange=()=>{st.topic=$('topic').value.replace(/[^A-Za-z0-9_-]/g,'');$('topic').value=st.topic;save()};
+
+async function pushServer(){
+  if(!serverOk)return;
+  try{
+    const r=await fetch('/api/watchlist',{method:'PUT',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ntfyTopic:st.topic,items:st.items.map(({symbol,limit,band})=>({symbol,limit,band}))})});
+    $('syncInfo').textContent=r.ok?'Servise gönderildi: '+new Date().toLocaleTimeString('tr-TR'):'Servis hata verdi.';
+  }catch(e){$('syncInfo').textContent='Servise ulaşılamadı.'}
+}
+$('sync').onclick=()=>{st.topic=$('topic').value.replace(/[^A-Za-z0-9_-]/g,'');save();serverOk?pushServer():($('syncInfo').textContent='Servis bağlı değil. Sayfayı servisten aç: http://bilgisayar-ip:8787')};
+
+(async()=>{
+  if(window.Android){$('apkInfo').textContent='Android uygulaması: arka plan servisi her 30 sn fiyatı kontrol eder, uygulama kapalıyken de bildirim gelir.';save();}
+  try{const w=await getJson('/api/watchlist');serverOk=true;
+    if(!st.items.length&&w.items&&w.items.length){st.items=w.items.map(i=>({symbol:i.symbol,limit:i.limit,band:i.band,zone:i.state||'in'}));}
+    if(!st.topic&&w.ntfyTopic){st.topic=w.ntfyTopic;$('topic').value=st.topic}
+    $('syncInfo').textContent='Servis bağlı ✓ (kapalıyken de izler).';
+  }catch{}
+  render();refresh();setInterval(refresh,REFRESH_MS);
+})();
+</script>
+</body>
+</html>
